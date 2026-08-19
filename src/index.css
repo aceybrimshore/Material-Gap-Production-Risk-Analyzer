@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@media print {
+  header, #btn-floating-copilot, select, input, button {
+    display: none !important;
+  }
+  body {
+    background-color: white !important;
+    color: black !important;
+  }
+  .bg-slate-900, .bg-slate-950, .dark\:bg-slate-900 {
+    background-color: white !important;
+    color: black !important;
+    border-color: #cbd5e1 !important;
+  }
+  table {
+    font-size: 10px !important;
+  }
+}

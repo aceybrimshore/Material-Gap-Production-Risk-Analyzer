@@ -1,0 +1,6 @@
+{
+  "name": "Supply Chain & Material Shortage Analyzer",
+  "description": "Analyze Work Order CSV datasets to identify material gaps, supply delays, production schedule risks, and automated vendor expediting action plans.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
