@@ -34,11 +34,28 @@ export async function copyToClipboard(text: string): Promise<boolean> {
 export function formatWorkOrderForExcel(wo: WorkOrderGroup): string {
   const lines: string[] = [];
 
+  const targetOrderQty = wo.targetOrderQty > 0 
+    ? wo.targetOrderQty 
+    : (wo.partialBuild?.originalTargetQty || '');
+  const reduceToQty = wo.partialBuild?.isFeasible 
+    ? wo.partialBuild.maxBuildableQty 
+    : (wo.totalQtyVar === 0 ? targetOrderQty : 'N/A');
+  const buildablePercent = wo.partialBuild?.isFeasible 
+    ? `${wo.partialBuild.buildablePercentage}%` 
+    : (wo.totalQtyVar === 0 ? '100%' : '0%');
+  const splitQty = wo.partialBuild?.isFeasible 
+    ? wo.partialBuild.shortageQtyToSplit 
+    : 0;
+
   // Summary header block
   lines.push(`WORK ORDER ANALYSIS: ${wo.woNumber}`);
   lines.push(`Assembly Item:\t${wo.assemblyItem}`);
   lines.push(`Customer:\t${wo.customer || '- None -'}`);
   lines.push(`Target Production Start:\t${wo.prodStartDate || 'Unscheduled'}`);
+  lines.push(`Target Order Qty (Units):\t${targetOrderQty}`);
+  lines.push(`Reduce To Qty (Immediate Build):\t${reduceToQty}`);
+  lines.push(`Buildable Percentage:\t${buildablePercent}`);
+  lines.push(`Split / Backorder Qty:\t${splitQty}`);
   lines.push(`Overall Risk Level:\t${wo.overallRiskLevel}`);
   lines.push(`Total BOM Parts:\t${wo.allMaterialItems.length}`);
   lines.push(`Missing / Short Parts:\t${wo.shortageItemsCount}`);
@@ -57,6 +74,10 @@ export function formatWorkOrderForExcel(wo: WorkOrderGroup): string {
     'Assembly Item',
     'Customer',
     'Target Prod Start',
+    'Target Order Qty',
+    'Reduce To Qty',
+    'Buildable %',
+    'Split Qty',
     'Component / Part #',
     'Item Description',
     'Member Qty (Per Unit)',
@@ -89,6 +110,10 @@ export function formatWorkOrderForExcel(wo: WorkOrderGroup): string {
       wo.assemblyItem,
       wo.customer || '- None -',
       wo.prodStartDate || '',
+      targetOrderQty,
+      reduceToQty,
+      buildablePercent,
+      splitQty,
       item.item,
       item.itemDescription,
       item.memberQuantity !== null && item.memberQuantity !== undefined ? item.memberQuantity : '',
@@ -175,8 +200,13 @@ export function formatAllWorkOrdersForExcel(wos: WorkOrderGroup[]): string {
     'Assembly Item',
     'Customer',
     'Target Prod Start',
+    'Target Order Qty',
+    'Reduce To Qty',
+    'Buildable %',
+    'Split Qty',
     'Component / Part #',
     'Item Description',
+    'Member Qty (Per Unit)',
     'Qty Needed',
     'Committed',
     'Shortage Gap',
@@ -188,6 +218,19 @@ export function formatAllWorkOrdersForExcel(wos: WorkOrderGroup[]): string {
   ].join('\t'));
 
   wos.forEach(wo => {
+    const targetOrderQty = wo.targetOrderQty > 0 
+      ? wo.targetOrderQty 
+      : (wo.partialBuild?.originalTargetQty || '');
+    const reduceToQty = wo.partialBuild?.isFeasible 
+      ? wo.partialBuild.maxBuildableQty 
+      : (wo.totalQtyVar === 0 ? targetOrderQty : '');
+    const buildablePercent = wo.partialBuild?.isFeasible 
+      ? `${wo.partialBuild.buildablePercentage}%` 
+      : (wo.totalQtyVar === 0 ? '100%' : '');
+    const splitQty = wo.partialBuild?.isFeasible 
+      ? wo.partialBuild.shortageQtyToSplit 
+      : (wo.totalQtyVar === 0 ? 0 : '');
+
     const items = wo.allMaterialItems.length > 0 ? wo.allMaterialItems : wo.excludedItems;
     items.forEach(item => {
       const isMissingDate = item.isMissingSupplyDate || !item.maxSupplyReceiptDate || item.maxSupplyReceiptDate === 'Unconfirmed';
@@ -206,8 +249,13 @@ export function formatAllWorkOrdersForExcel(wos: WorkOrderGroup[]): string {
         wo.assemblyItem,
         wo.customer || '- None -',
         wo.prodStartDate || '',
+        targetOrderQty,
+        reduceToQty,
+        buildablePercent,
+        splitQty,
         item.item,
         item.itemDescription,
+        item.memberQuantity !== null && item.memberQuantity !== undefined ? item.memberQuantity : '',
         item.qtyNeeded,
         item.committed,
         item.qtyVar > 0 ? -item.qtyVar : 0,
@@ -226,8 +274,13 @@ export function formatAllWorkOrdersForExcel(wos: WorkOrderGroup[]): string {
 /**
  * Format ALL flat items into clean TSV
  */
-export function formatAllItemsForExcel(items: WorkOrderItem[]): string {
+export function formatAllItemsForExcel(items: WorkOrderItem[], woGroups?: WorkOrderGroup[]): string {
   const lines: string[] = [];
+
+  const woMap = new Map<string, WorkOrderGroup>();
+  if (woGroups) {
+    woGroups.forEach(w => woMap.set(w.woNumber, w));
+  }
 
   lines.push([
     'WO Number',
@@ -235,6 +288,10 @@ export function formatAllItemsForExcel(items: WorkOrderItem[]): string {
     'Customer',
     'Status',
     'Target Prod Start',
+    'Target Order Qty',
+    'Reduce To Qty',
+    'Buildable %',
+    'Split Qty',
     'Component / Part #',
     'Item Description',
     'Member Qty (Per Unit)',
@@ -250,6 +307,20 @@ export function formatAllItemsForExcel(items: WorkOrderItem[]): string {
   ].join('\t'));
 
   items.forEach(item => {
+    const parentWO = woMap.get(item.woNumber);
+    const targetOrderQty = parentWO?.targetOrderQty 
+      ? parentWO.targetOrderQty 
+      : (parentWO?.partialBuild?.originalTargetQty || '');
+    const reduceToQty = parentWO?.partialBuild?.isFeasible 
+      ? parentWO.partialBuild.maxBuildableQty 
+      : (parentWO && parentWO.totalQtyVar === 0 ? targetOrderQty : '');
+    const buildablePercent = parentWO?.partialBuild?.isFeasible 
+      ? `${parentWO.partialBuild.buildablePercentage}%` 
+      : (parentWO && parentWO.totalQtyVar === 0 ? '100%' : '');
+    const splitQty = parentWO?.partialBuild?.isFeasible 
+      ? parentWO.partialBuild.shortageQtyToSplit 
+      : (parentWO && parentWO.totalQtyVar === 0 ? 0 : '');
+
     const isMissingDate = item.isMissingSupplyDate || !item.maxSupplyReceiptDate || item.maxSupplyReceiptDate === 'Unconfirmed';
     const supplyDate = isMissingDate ? 'NO SUPPLY DATE' : item.maxSupplyReceiptDate;
     const delayStr = isMissingDate 
@@ -267,6 +338,10 @@ export function formatAllItemsForExcel(items: WorkOrderItem[]): string {
       item.customer || '- None -',
       item.status || 'Released',
       item.prodStartDate || '',
+      targetOrderQty,
+      reduceToQty,
+      buildablePercent,
+      splitQty,
       item.item,
       item.itemDescription,
       item.memberQuantity !== null && item.memberQuantity !== undefined ? item.memberQuantity : '',
@@ -279,6 +354,133 @@ export function formatAllItemsForExcel(items: WorkOrderItem[]): string {
       delayStr,
       isMissingDate ? 'NO SUPPLY DATE' : item.riskLevel,
       actionStr
+    ].join('\t'));
+  });
+
+  return lines.join('\r\n');
+}
+
+/**
+ * Format only Work Orders that qualify for Partial Build into an executive
+ * reduction & split summary table for Excel (one row per Work Order)
+ */
+export function formatPartialBuildSummaryForExcel(wos: WorkOrderGroup[]): string {
+  const lines: string[] = [];
+  const eligibleWOs = wos.filter(w => w.partialBuild?.isFeasible);
+
+  lines.push(`WORK ORDER REDUCTION & PARTIAL BUILD SUMMARY`);
+  lines.push(`Export Date:\t${new Date().toLocaleDateString()}`);
+  lines.push(`Eligible Work Orders:\t${eligibleWOs.length}`);
+  lines.push('');
+
+  lines.push([
+    'WO Number',
+    'Assembly Item',
+    'Customer',
+    'Target Prod Start',
+    'Target Order Qty (Original)',
+    'Reduce To Qty (Immediate Build)',
+    'Buildable %',
+    'Split Qty (Backorder WO)',
+    'Bottleneck Part #',
+    'Bottleneck Description',
+    'Bottleneck Committed On Hand',
+    'Bottleneck Supply ETA',
+    'Schedule Status',
+    'Recommended Production Action'
+  ].join('\t'));
+
+  eligibleWOs.forEach(wo => {
+    const pb = wo.partialBuild!;
+    const primaryLimiting = pb.limitingParts[0];
+    const bottleneckPart = primaryLimiting ? primaryLimiting.itemCode : 'N/A';
+    const bottleneckDesc = primaryLimiting ? primaryLimiting.itemDescription : 'None';
+    const bottleneckCommitted = primaryLimiting ? primaryLimiting.committed : '';
+    const bottleneckETA = primaryLimiting ? primaryLimiting.maxSupplyReceiptDate : 'N/A';
+    const targetQty = wo.targetOrderQty > 0 ? wo.targetOrderQty : pb.originalTargetQty;
+
+    lines.push([
+      wo.woNumber,
+      wo.assemblyItem,
+      wo.customer || '- None -',
+      wo.prodStartDate || 'Unscheduled',
+      targetQty,
+      pb.maxBuildableQty,
+      `${pb.buildablePercentage}%`,
+      pb.shortageQtyToSplit,
+      bottleneckPart,
+      bottleneckDesc,
+      bottleneckCommitted,
+      bottleneckETA,
+      wo.maxDelayDays !== null && wo.maxDelayDays > 0 ? `+${wo.maxDelayDays}d Late` : 'On Track / Unscheduled',
+      `Reduce WO to ${pb.maxBuildableQty} units; release shop floor build today. Split ${pb.shortageQtyToSplit} units to secondary WO awaiting ${bottleneckPart}.`
+    ].join('\t'));
+  });
+
+  return lines.join('\r\n');
+}
+
+/**
+ * Format simulated component coverage for a single Work Order partial build into Excel TSV
+ */
+export function formatPartialBuildCoverageForExcel(
+  wo: WorkOrderGroup,
+  simulatedQty: number,
+  components: Array<{
+    itemCode: string;
+    description: string;
+    unitMultiplier: number;
+    committed: number;
+    neededForSimulated: number;
+    hasEnough: boolean;
+    maxUnitsFromThisItem: number;
+    supplyDate: string;
+  }>
+): string {
+  const lines: string[] = [];
+  const targetQty = wo.targetOrderQty > 0 ? wo.targetOrderQty : (wo.partialBuild?.originalTargetQty || '');
+  const splitQty = typeof targetQty === 'number' ? Math.max(0, targetQty - simulatedQty) : '';
+
+  lines.push(`WORK ORDER REDUCTION SIMULATION: ${wo.woNumber}`);
+  lines.push(`Assembly Item:\t${wo.assemblyItem}`);
+  lines.push(`Customer:\t${wo.customer || '- None -'}`);
+  lines.push(`Target Production Start:\t${wo.prodStartDate || 'Unscheduled'}`);
+  lines.push(`Original Target Qty:\t${targetQty}`);
+  lines.push(`Simulated Reduce To Qty:\t${simulatedQty}`);
+  lines.push(`Split / Backorder Qty:\t${splitQty}`);
+  lines.push('');
+
+  lines.push([
+    'WO Number',
+    'Assembly Item',
+    'Original Target Qty',
+    'Reduce To Qty',
+    'Split Qty',
+    'Component / Part #',
+    'Item Description',
+    'Qty / Unit (Member Qty)',
+    'Committed On Hand',
+    'Needed for Reduced Qty',
+    'Coverage Status',
+    'Max Units Buildable from Part',
+    'Supply Receipt Date'
+  ].join('\t'));
+
+  components.forEach(c => {
+    lines.push([
+      wo.woNumber,
+      wo.assemblyItem,
+      targetQty,
+      simulatedQty,
+      splitQty,
+      c.itemCode,
+      c.description,
+      c.unitMultiplier,
+      c.committed,
+      c.neededForSimulated,
+      c.hasEnough ? 'Covered' : 'Short',
+      c.maxUnitsFromThisItem,
+      c.supplyDate
     ].join('\t'));
   });
 

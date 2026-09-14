@@ -13,7 +13,7 @@ import {
   TrendingDown
 } from 'lucide-react';
 import { WorkOrderItem, SummaryMetrics, AIAnalysisResponse, ExpediteRecommendation } from './types';
-import { parseWorkOrderCSV, calculateSummaryMetrics, aggregateByComponent } from './utils/parser';
+import { parseWorkOrderCSV, calculateSummaryMetrics, aggregateByComponent, groupItemsByWorkOrder } from './utils/parser';
 import { PROMPT_SAMPLE_RAW, EXPANDED_SAMPLE_RAW } from './utils/sampleData';
 import { Header } from './components/Header';
 import { ExecutiveSummary } from './components/ExecutiveSummary';
@@ -152,27 +152,37 @@ export default function App() {
 
   // Export filtered items as CSV
   const handleExportCSV = () => {
+    const woGroups = groupItemsByWorkOrder(items);
+    const woMap = new Map(woGroups.map(w => [w.woNumber, w]));
+
     const exportData = items
       .filter(item => {
         if (hideNonMaterial && item.isNonMaterial && activeRiskFilter !== 'EXCLUDED') return false;
         if (activeRiskFilter !== 'ALL' && item.riskLevel !== activeRiskFilter) return false;
         return true;
       })
-      .map(item => ({
-        'WO Number': item.woNumber,
-        'Assembly Item': item.assemblyItem,
-        'Item Code': item.item,
-        'Item Description': item.itemDescription,
-        'Qty Needed': item.qtyNeeded,
-        'Committed': item.committed,
-        'Qty. Var.': item.qtyVar,
-        'Prod. Start Date': item.prodStartDate,
-        'Supply Receipt Date': item.maxSupplyReceiptDate || 'Unconfirmed',
-        'Schedule Delta Days': item.delayDays !== null ? item.delayDays : 'N/A',
-        'Risk Level': item.riskLevel,
-        'Inventory Type': item.inventoryType,
-        'Customer': item.customer,
-      }));
+      .map(item => {
+        const parentWO = woMap.get(item.woNumber);
+        return {
+          'WO Number': item.woNumber,
+          'Assembly Item': item.assemblyItem,
+          'Customer': item.customer || '- None -',
+          'Target Order Qty': parentWO?.targetOrderQty || '',
+          'Reduce To Qty': parentWO?.partialBuild?.isFeasible ? parentWO.partialBuild.maxBuildableQty : '',
+          'Buildable %': parentWO?.partialBuild?.isFeasible ? `${parentWO.partialBuild.buildablePercentage}%` : '',
+          'Item Code': item.item,
+          'Item Description': item.itemDescription,
+          'Member Qty (Per Unit)': item.memberQuantity ?? '',
+          'Qty Needed': item.qtyNeeded,
+          'Committed': item.committed,
+          'Qty. Var.': item.qtyVar,
+          'Prod. Start Date': item.prodStartDate,
+          'Supply Receipt Date': item.maxSupplyReceiptDate || 'Unconfirmed',
+          'Schedule Delta Days': item.delayDays !== null ? item.delayDays : 'N/A',
+          'Risk Level': item.riskLevel,
+          'Inventory Type': item.inventoryType,
+        };
+      });
 
     const csv = Papa.unparse(exportData);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -205,7 +215,7 @@ export default function App() {
       />
 
       {/* Main Workspace Layout */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <main className="flex-1 max-w-[1600px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Executive Summary Metrics */}
         <ExecutiveSummary
           metrics={metrics}

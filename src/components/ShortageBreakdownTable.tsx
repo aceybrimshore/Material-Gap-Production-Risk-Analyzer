@@ -36,7 +36,8 @@ import {
   formatWorkOrderForExcel, 
   formatAssemblyForExcel, 
   formatAllWorkOrdersForExcel, 
-  formatAllItemsForExcel 
+  formatAllItemsForExcel,
+  formatPartialBuildSummaryForExcel
 } from '../utils/excelExport';
 import { PartialBuildModal } from './PartialBuildModal';
 
@@ -333,13 +334,14 @@ export const ShortageBreakdownTable: React.FC<ShortageBreakdownTableProps> = ({
         </div>
       </div>
 
-      {/* Control Toolbar: Risk Pills, Search, Assembly Selector, Expand/Collapse */}
-      <div className="p-4 border-b border-slate-100 bg-white flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-        {/* Risk Pills */}
+      {/* Control Toolbar: Responsive, Two-tier layout so nothing ever overflows or gets clipped */}
+      <div className="p-4 border-b border-slate-100 bg-white space-y-3">
+        {/* Row 1: Risk Filter Pills */}
         <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1 shrink-0">Filter:</span>
           <button
             onClick={() => onChangeRiskFilter('ALL')}
-            className={`px-3 py-1 text-xs font-semibold rounded-lg transition ${
+            className={`px-3 py-1 text-xs font-semibold rounded-lg transition shrink-0 ${
               activeRiskFilter === 'ALL'
                 ? 'bg-slate-900 text-white'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -349,7 +351,7 @@ export const ShortageBreakdownTable: React.FC<ShortageBreakdownTableProps> = ({
           </button>
           <button
             onClick={() => onChangeRiskFilter('CRITICAL')}
-            className={`px-3 py-1 text-xs font-bold rounded-lg transition flex items-center gap-1.5 ${
+            className={`px-3 py-1 text-xs font-bold rounded-lg transition flex items-center gap-1.5 shrink-0 ${
               activeRiskFilter === 'CRITICAL'
                 ? 'bg-rose-600 text-white shadow-xs'
                 : 'bg-rose-50 text-rose-700 hover:bg-rose-100'
@@ -359,7 +361,7 @@ export const ShortageBreakdownTable: React.FC<ShortageBreakdownTableProps> = ({
           </button>
           <button
             onClick={() => onChangeRiskFilter('NO_SUPPLY_DATE')}
-            className={`px-3 py-1 text-xs font-bold rounded-lg transition flex items-center gap-1.5 ${
+            className={`px-3 py-1 text-xs font-bold rounded-lg transition flex items-center gap-1.5 shrink-0 ${
               activeRiskFilter === 'NO_SUPPLY_DATE'
                 ? 'bg-rose-700 text-white shadow-xs'
                 : 'bg-rose-100 text-rose-800 hover:bg-rose-200 border border-rose-200'
@@ -370,7 +372,7 @@ export const ShortageBreakdownTable: React.FC<ShortageBreakdownTableProps> = ({
           </button>
           <button
             onClick={() => onChangeRiskFilter('PARTIAL_BUILD')}
-            className={`px-3 py-1 text-xs font-bold rounded-lg transition flex items-center gap-1.5 ${
+            className={`px-3 py-1 text-xs font-bold rounded-lg transition flex items-center gap-1.5 shrink-0 ${
               activeRiskFilter === 'PARTIAL_BUILD'
                 ? 'bg-amber-600 text-white shadow-xs'
                 : 'bg-amber-100 text-amber-900 hover:bg-amber-200 border border-amber-300'
@@ -382,7 +384,7 @@ export const ShortageBreakdownTable: React.FC<ShortageBreakdownTableProps> = ({
           </button>
           <button
             onClick={() => onChangeRiskFilter('MODERATE')}
-            className={`px-3 py-1 text-xs font-bold rounded-lg transition flex items-center gap-1.5 ${
+            className={`px-3 py-1 text-xs font-bold rounded-lg transition flex items-center gap-1.5 shrink-0 ${
               activeRiskFilter === 'MODERATE'
                 ? 'bg-amber-500 text-white shadow-xs'
                 : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
@@ -392,7 +394,7 @@ export const ShortageBreakdownTable: React.FC<ShortageBreakdownTableProps> = ({
           </button>
           <button
             onClick={() => onChangeRiskFilter('ON_TRACK')}
-            className={`px-3 py-1 text-xs font-bold rounded-lg transition flex items-center gap-1.5 ${
+            className={`px-3 py-1 text-xs font-bold rounded-lg transition flex items-center gap-1.5 shrink-0 ${
               activeRiskFilter === 'ON_TRACK'
                 ? 'bg-emerald-600 text-white shadow-xs'
                 : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
@@ -402,7 +404,7 @@ export const ShortageBreakdownTable: React.FC<ShortageBreakdownTableProps> = ({
           </button>
           <button
             onClick={() => onChangeRiskFilter('EXCLUDED')}
-            className={`px-3 py-1 text-xs font-medium rounded-lg transition flex items-center gap-1.5 ${
+            className={`px-3 py-1 text-xs font-medium rounded-lg transition flex items-center gap-1.5 shrink-0 ${
               activeRiskFilter === 'EXCLUDED'
                 ? 'bg-slate-700 text-white'
                 : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
@@ -412,101 +414,126 @@ export const ShortageBreakdownTable: React.FC<ShortageBreakdownTableProps> = ({
           </button>
         </div>
 
-        {/* Search, Filter & Expand Toggles */}
-        <div className="flex items-center gap-2 flex-wrap lg:flex-nowrap">
-          {viewMode === 'WORK_ORDER' && (
-            <div className="flex items-center gap-1 text-xs">
-              <button
-                onClick={() => toggleAllWOs(true)}
-                className="px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-100 rounded flex items-center gap-1"
-                title="Expand All Work Orders"
-              >
-                <Maximize2 className="w-3 h-3 text-indigo-600" />
-                <span>Expand All</span>
-              </button>
-              <button
-                onClick={() => toggleAllWOs(false)}
-                className="px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-100 rounded flex items-center gap-1"
-                title="Collapse All Work Orders"
-              >
-                <Minimize2 className="w-3 h-3 text-slate-400" />
-                <span>Collapse</span>
-              </button>
-            </div>
-          )}
+        {/* Row 2: Search, Assembly Selector, Expand/Collapse & Excel Export Actions */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2.5 border-t border-slate-100">
+          {/* Left: Expand/Collapse Toggles + Search Input + Assembly Filter Dropdown */}
+          <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+            {viewMode === 'WORK_ORDER' && (
+              <div className="flex items-center gap-1 text-xs shrink-0">
+                <button
+                  onClick={() => toggleAllWOs(true)}
+                  className="px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-100 rounded flex items-center gap-1 cursor-pointer"
+                  title="Expand All Work Orders"
+                >
+                  <Maximize2 className="w-3 h-3 text-indigo-600" />
+                  <span>Expand All</span>
+                </button>
+                <button
+                  onClick={() => toggleAllWOs(false)}
+                  className="px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-100 rounded flex items-center gap-1 cursor-pointer"
+                  title="Collapse All Work Orders"
+                >
+                  <Minimize2 className="w-3 h-3 text-slate-400" />
+                  <span>Collapse</span>
+                </button>
+              </div>
+            )}
 
-          {viewMode === 'ASSEMBLY' && (
-            <div className="flex items-center gap-1 text-xs">
-              <button
-                onClick={() => toggleAllAssemblies(true)}
-                className="px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-100 rounded flex items-center gap-1"
-                title="Expand All Assemblies"
-              >
-                <Maximize2 className="w-3 h-3 text-indigo-600" />
-                <span>Expand All</span>
-              </button>
-              <button
-                onClick={() => toggleAllAssemblies(false)}
-                className="px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-100 rounded flex items-center gap-1"
-                title="Collapse All Assemblies"
-              >
-                <Minimize2 className="w-3 h-3 text-slate-400" />
-                <span>Collapse</span>
-              </button>
-            </div>
-          )}
+            {viewMode === 'ASSEMBLY' && (
+              <div className="flex items-center gap-1 text-xs shrink-0">
+                <button
+                  onClick={() => toggleAllAssemblies(true)}
+                  className="px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-100 rounded flex items-center gap-1 cursor-pointer"
+                  title="Expand All Assemblies"
+                >
+                  <Maximize2 className="w-3 h-3 text-indigo-600" />
+                  <span>Expand All</span>
+                </button>
+                <button
+                  onClick={() => toggleAllAssemblies(false)}
+                  className="px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-100 rounded flex items-center gap-1 cursor-pointer"
+                  title="Collapse All Assemblies"
+                >
+                  <Minimize2 className="w-3 h-3 text-slate-400" />
+                  <span>Collapse</span>
+                </button>
+              </div>
+            )}
 
-          {/* Search Box */}
-          <div className="relative min-w-[200px] flex-1">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search WO#, Part, Assembly..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-slate-50 text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:bg-white"
-            />
+            {/* Search Box */}
+            <div className="relative flex-1 min-w-[170px] max-w-sm">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search WO#, Part, Assembly..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-slate-50 text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:bg-white"
+              />
+            </div>
+
+            {/* Assembly Selector */}
+            <select
+              value={assemblyFilter}
+              onChange={(e) => setAssemblyFilter(e.target.value)}
+              className="px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-slate-50 text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium shrink-0 max-w-[210px] truncate cursor-pointer"
+            >
+              <option value="ALL">All Assemblies</option>
+              {uniqueAssemblies.map(asm => (
+                <option key={asm} value={asm}>{asm}</option>
+              ))}
+            </select>
           </div>
 
-          {/* Assembly Selector */}
-          <select
-            value={assemblyFilter}
-            onChange={(e) => setAssemblyFilter(e.target.value)}
-            className="px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-slate-50 text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium"
-          >
-            <option value="ALL">All Assemblies</option>
-            {uniqueAssemblies.map(asm => (
-              <option key={asm} value={asm}>{asm}</option>
-            ))}
-          </select>
+          {/* Right: Copy & Export Action Buttons */}
+          <div className="flex items-center gap-2 flex-wrap shrink-0">
+            {/* Copy Partial Build Reduction Summary Button */}
+            {activeRiskFilter === 'PARTIAL_BUILD' && (
+              <button
+                id="btn-copy-reduction-summary-excel"
+                onClick={async () => {
+                  const tsv = formatPartialBuildSummaryForExcel(filteredWOGroups);
+                  const ok = await copyToClipboard(tsv);
+                  if (ok) {
+                    showToast(`Copied Partial Build reduction summary (${filteredWOGroups.length} WOs) with Reduce To Qty to clipboard! Ready to paste into Excel (Ctrl+V).`);
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-amber-600 hover:bg-amber-700 text-white shadow-xs transition cursor-pointer shrink-0"
+                title="Copy 1-row-per-WO executive reduction plan with Target Order Qty, Reduce To Qty, Split Qty, and Bottleneck parts"
+              >
+                <Scissors className="w-3.5 h-3.5" />
+                <span>Copy Reduction Summary</span>
+              </button>
+            )}
 
-          {/* Copy All for Excel Button */}
-          <button
-            id="btn-copy-all-excel"
-            onClick={async () => {
-              let tsv = '';
-              let countStr = '';
-              if (viewMode === 'WORK_ORDER') {
-                tsv = formatAllWorkOrdersForExcel(filteredWOGroups);
-                countStr = `${filteredWOGroups.length} Work Orders`;
-              } else if (viewMode === 'ASSEMBLY') {
-                tsv = formatAllWorkOrdersForExcel(filteredWOGroups);
-                countStr = `${filteredAssemblyGroups.length} Assemblies`;
-              } else {
-                tsv = formatAllItemsForExcel(processedFlatItems);
-                countStr = `${processedFlatItems.length} items`;
-              }
-              const ok = await copyToClipboard(tsv);
-              if (ok) {
-                showToast(`Copied all ${countStr} to clipboard! Ready to paste into Excel (Ctrl+V).`);
-              }
-            }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition cursor-pointer shrink-0"
-            title="Copy all currently filtered data formatted for direct Excel paste (Ctrl+V)"
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5" />
-            <span>Copy All for Excel</span>
-          </button>
+            {/* Copy All for Excel Button */}
+            <button
+              id="btn-copy-all-excel"
+              onClick={async () => {
+                let tsv = '';
+                let countStr = '';
+                if (viewMode === 'WORK_ORDER') {
+                  tsv = formatAllWorkOrdersForExcel(filteredWOGroups);
+                  countStr = `${filteredWOGroups.length} Work Orders`;
+                } else if (viewMode === 'ASSEMBLY') {
+                  tsv = formatAllWorkOrdersForExcel(filteredWOGroups);
+                  countStr = `${filteredAssemblyGroups.length} Assemblies`;
+                } else {
+                  tsv = formatAllItemsForExcel(processedFlatItems, allWOGroups);
+                  countStr = `${processedFlatItems.length} items`;
+                }
+                const ok = await copyToClipboard(tsv);
+                if (ok) {
+                  showToast(`Copied all ${countStr} to clipboard (includes Reduce To Qty & Target Order Qty)! Ready to paste into Excel (Ctrl+V).`);
+                }
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition cursor-pointer shrink-0"
+              title="Copy all currently filtered data formatted with Reduce To Qty for direct Excel paste (Ctrl+V)"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span>Copy All for Excel</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -519,7 +546,7 @@ export const ShortageBreakdownTable: React.FC<ShortageBreakdownTableProps> = ({
               <span className="font-bold text-slate-900">Active View Filter:</span>
               {activeRiskFilter !== 'ALL' && (
                 <span className="px-2 py-0.5 rounded bg-white font-semibold text-slate-800 border border-slate-200">
-                  Risk: {activeRiskFilter === 'NO_SUPPLY_DATE' ? 'NO SUPPLY DATE (No PO)' : activeRiskFilter}
+                  Risk: {activeRiskFilter === 'NO_SUPPLY_DATE' ? 'NO SUPPLY DATE (No PO)' : (activeRiskFilter === 'PARTIAL_BUILD' ? '💡 Partial Build Ready (includes Reduce To Qty)' : activeRiskFilter)}
                 </span>
               )}
               {assemblyFilter !== 'ALL' && (

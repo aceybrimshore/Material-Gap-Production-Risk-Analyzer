@@ -12,9 +12,10 @@ import {
   Layers, 
   Calendar,
   Sparkles,
-  Info
+  Info,
+  FileSpreadsheet
 } from 'lucide-react';
-import { copyToClipboard } from '../utils/excelExport';
+import { copyToClipboard, formatPartialBuildCoverageForExcel } from '../utils/excelExport';
 
 interface PartialBuildModalProps {
   isOpen: boolean;
@@ -28,6 +29,7 @@ export const PartialBuildModal: React.FC<PartialBuildModalProps> = ({
   workOrder,
 }) => {
   const [copied, setCopied] = useState(false);
+  const [copiedExcel, setCopiedExcel] = useState(false);
   const [customBuildQty, setCustomBuildQty] = useState<number | null>(null);
 
   if (!isOpen || !workOrder) return null;
@@ -97,6 +99,15 @@ Reducing the work order allows the factory to complete ${activeQty} finished uni
     if (ok) {
       setCopied(true);
       setTimeout(() => setCopied(false), 3000);
+    }
+  };
+
+  const handleCopyExcel = async () => {
+    const tsv = formatPartialBuildCoverageForExcel(workOrder, activeQty, componentAnalysis);
+    const ok = await copyToClipboard(tsv);
+    if (ok) {
+      setCopiedExcel(true);
+      setTimeout(() => setCopiedExcel(false), 3000);
     }
   };
 
@@ -360,9 +371,17 @@ Reducing the work order allows the factory to complete ${activeQty} finished uni
           <div className="flex items-center gap-3">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 transition"
+              className="px-4 py-2 text-xs font-semibold rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 transition cursor-pointer"
             >
               Close
+            </button>
+            <button
+              onClick={handleCopyExcel}
+              className="px-3.5 py-2 text-xs font-bold rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+              title="Copy component coverage table with Target Order Qty & Reduce To Qty formatted for Excel"
+            >
+              {copiedExcel ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />}
+              <span>{copiedExcel ? 'Copied for Excel!' : 'Copy for Excel'}</span>
             </button>
             <button
               onClick={handleCopyInstruction}
