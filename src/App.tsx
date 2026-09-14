@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { WorkOrderItem, SummaryMetrics, AIAnalysisResponse, ExpediteRecommendation } from './types';
 import { parseWorkOrderCSV, calculateSummaryMetrics, aggregateByComponent, groupItemsByWorkOrder } from './utils/parser';
+import { generateClientSupplyChainAnalysis } from './utils/aiAnalysisFallback';
 import { PROMPT_SAMPLE_RAW, EXPANDED_SAMPLE_RAW } from './utils/sampleData';
 import { Header } from './components/Header';
 import { ExecutiveSummary } from './components/ExecutiveSummary';
@@ -79,32 +80,9 @@ export default function App() {
       if (data && data.executiveBrief) {
         setAiAnalysis(data);
       }
-    } catch (err) {
-      console.warn('Network issue fetching AI analysis, using client fallback:', err);
-      // Client-side fallback to guarantee flawless UI rendering
-      const topPart = topBottlenecks[0];
-      setAiAnalysis({
-        executiveBrief: `Analysis of ${metrics.totalWOs} Work Orders identified ${metrics.criticalItemsCount} critical material shortages causing schedule delays up to +${metrics.maxDelayDays} days. Total uncommitted material variance is ${metrics.totalQtyVariance.toLocaleString()} units across ${metrics.highRiskWOsCount} blocked assembly work orders.${topPart ? ` Component ${topPart.itemCode} (${topPart.description}) represents the primary line-stoppage risk.` : ''}`,
-        keyRisks: [
-          topPart ? `Primary bottleneck on part ${topPart.itemCode}: ${topPart.totalQtyVar.toLocaleString()} units short impacting ${topPart.affectedWOs?.length || 1} Work Orders.` : 'Supplier delivery lag on critical hardware items.',
-          `${metrics.missingSupplyDateCount} line items currently have NO SUPPLY RECEIPT DATE on record (PO unconfirmed).`,
-          `High-risk finished assemblies require proactive scheduling adjustments or partial builds.`
-        ],
-        topExpedites: topBottlenecks.slice(0, 3).map((b, idx) => ({
-          itemCode: b.itemCode,
-          itemDescription: b.description,
-          actionRequired: `Expedite ${b.totalQtyVar.toLocaleString()} units for production start ${b.earliestProdStartDate} (${b.maxDelayDays > 0 ? `+${b.maxDelayDays}d late` : 'Critical gap'}).`,
-          urgency: idx === 0 ? 'CRITICAL / LINE STOPPER' : 'HIGH'
-        })),
-        productionRecommendations: [
-          'Review partial build recommendations to release buildable work orders today.',
-          'Audit internal inventory buffer locations for missing standard fasteners and brackets.',
-          'Re-align dispatch priorities with sales for impacted customer accounts.'
-        ],
-        reallocationOpportunities: [
-          'Consolidate available component inventory into single high-priority work orders to finish complete units.'
-        ]
-      });
+    } catch {
+      // Client-side fallback to guarantee flawless UI rendering on GitHub Pages or offline
+      setAiAnalysis(generateClientSupplyChainAnalysis(metrics, criticalItems, topBottlenecks));
     } finally {
       setIsAILoading(false);
     }

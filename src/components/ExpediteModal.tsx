@@ -58,8 +58,7 @@ export const ExpediteModal: React.FC<ExpediteModalProps> = ({
         setEmailSubject(data.subject);
         setEmailBody(data.body);
       }
-    } catch (err) {
-      console.error('Error generating email draft:', err);
+    } catch {
       // Fallback
       setEmailSubject(`URGENT EXPEDITE: Part ${itemCode} - Material Shortage for Production Start ${targetArrival}`);
       setEmailBody(`Dear Supplier Team,

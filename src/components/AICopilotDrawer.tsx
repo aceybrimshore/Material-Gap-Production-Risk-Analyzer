@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Sparkles, Send, X, Bot, User, RefreshCw } from 'lucide-react';
 import { WorkOrderItem, SummaryMetrics } from '../types';
+import { generateClientCopilotResponse } from '../utils/aiAnalysisFallback';
 
 interface AICopilotDrawerProps {
   isOpen: boolean;
@@ -63,28 +64,28 @@ Ask me anything such as:
     setInputText('');
     setIsLoading(true);
 
-    try {
-      // Build lightweight dataset context for AI
-      const datasetContext = {
-        totalWOs: metrics.totalWOs,
-        criticalItemsCount: metrics.criticalItemsCount,
-        maxDelayDays: metrics.maxDelayDays,
-        totalQtyVariance: metrics.totalQtyVariance,
-        sampleItems: items.filter(i => !i.isNonMaterial && i.qtyVar > 0).map(i => ({
-          wo: i.woNumber,
-          assembly: i.assemblyItem,
-          part: i.item,
-          desc: i.itemDescription,
-          needed: i.qtyNeeded,
-          committed: i.committed,
-          var: i.qtyVar,
-          prodStart: i.prodStartDate,
-          supplyDate: i.maxSupplyReceiptDate,
-          delayDays: i.delayDays,
-          status: i.riskLevel,
-        })).slice(0, 25),
-      };
+    // Build lightweight dataset context for AI
+    const datasetContext = {
+      totalWOs: metrics.totalWOs,
+      criticalItemsCount: metrics.criticalItemsCount,
+      maxDelayDays: metrics.maxDelayDays,
+      totalQtyVariance: metrics.totalQtyVariance,
+      sampleItems: items.filter(i => !i.isNonMaterial && i.qtyVar > 0).map(i => ({
+        wo: i.woNumber,
+        assembly: i.assemblyItem,
+        part: i.item,
+        desc: i.itemDescription,
+        needed: i.qtyNeeded,
+        committed: i.committed,
+        var: i.qtyVar,
+        prodStart: i.prodStartDate,
+        supplyDate: i.maxSupplyReceiptDate,
+        delayDays: i.delayDays,
+        status: i.riskLevel,
+      })).slice(0, 25),
+    };
 
+    try {
       const response = await fetch('/api/ai-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -100,15 +101,16 @@ Ask me anything such as:
       };
 
       setMessages(prev => [...prev, aiMsg]);
-    } catch (err) {
-      console.error('Error chatting with AI:', err);
-      const errorMsg: Message = {
-        id: `ai-err-${Date.now()}`,
+    } catch {
+      // Fallback for offline or static GitHub Pages hosting
+      const answer = generateClientCopilotResponse(textToSend, datasetContext);
+      const fallbackMsg: Message = {
+        id: `ai-${Date.now()}`,
         sender: 'assistant',
-        text: 'Error processing inquiry. Please verify server connection.',
+        text: answer,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
-      setMessages(prev => [...prev, errorMsg]);
+      setMessages(prev => [...prev, fallbackMsg]);
     } finally {
       setIsLoading(false);
     }
@@ -124,7 +126,7 @@ Ask me anything such as:
           </div>
           <div>
             <h3 className="font-bold text-sm">Supply Chain AI Copilot</h3>
-            <p className="text-[11px] text-slate-400">Gemini 3.7 Flash Intelligence</p>
+            <p className="text-[11px] text-slate-400">Gemini Supply Chain Intelligence</p>
           </div>
         </div>
         <button
